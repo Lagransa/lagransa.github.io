@@ -1,0 +1,20 @@
+PLINK v1.90b6.26 64-bit (2 Apr 2022)
+Options in effect:
+  --allow-extra-chr
+  --double-id
+  --make-bed
+  --out test_p2
+  --pca
+  --set-missing-var-ids @:#
+  --vcf -
+
+Hostname: Lagransa
+Working directory: /mnt/d/Code_software/Jupyter_Notebook/git_backup/lagransa.github.io
+Start time: Fri May 10 23:36:58 2024
+
+Random number seed: 1715355418
+7899 MB RAM detected; reserving 3949 MB for main workspace.
+Error: Failed to open -. (--vcf expects a complete filename; did you forget
+'.vcf' at the end?)
+
+End time: Fri May 10 23:36:58 2024
