@@ -1,0 +1,2 @@
+dependence <- c('ggplot2', 'scatterplot3d', 'tidyverse', 'SingleCellExperiment', 'Seurat', 'Matrix', 'scales', 'cowplot', 'RCurl', 'AnnotationHub', 'ensembldb')
+lapply(dependence, library, character.only=TRUE)

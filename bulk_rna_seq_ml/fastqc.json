@@ -1,0 +1,5 @@
+{
+    "project_path":"/home/lagransa/Desktop/RNA_seq/",
+    "fastqc_outputdir":"fastqc_output",
+    "multiqc_outputdir":"multiqc_output"
+}

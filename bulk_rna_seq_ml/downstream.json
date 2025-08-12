@@ -1,0 +1,42 @@
+{   
+    "script_path":"/mnt/d/Code_software/Jupyter_Notebook/git_backup/lagransa.github.io/vcf_statitics.R",
+    
+    "project_path":"C:/BMK_new_drive/WorkFlow_test/",
+    
+    "output_prefix":"5th_132",
+    
+    "statistic_extensions":["frq", "idepth", "ldepth.mean", "lqual", "imiss", "lmiss", "het"],
+
+    "vcf_path":""
+    
+    "vcf_qc":{
+        "mac":2,
+        "min_quality":30,
+        "min_depth":10,
+        "max_depth":50,
+        "min_mean_depth":10,
+        "max_mean_depth":50,
+        "max_missing":0.7
+    },
+
+    "pca":{
+        
+    }
+    
+    "phylo_genetic":{
+        "software_path":"",
+        "vsf2fasta":"",
+        "fasta_path":"",
+        "bootstrap":1000,
+        "mcmc_chain":10000000,
+        
+    },
+    
+    "flags":{
+        "is_wsl":false,
+        "universe":true,
+        "encoding":"UTF-8",
+        "logged":true,
+        "save_intermediate":true
+    }
+}
