@@ -189,7 +189,7 @@ class RF():
         per_x = per_importance['Permutation_importance_mean'].values[: top_k]
         per_y = per_importance['Feature'].values[: top_k]
         plt.figure(figsize=(10, 6))
-        sns.barplot(X=per_x, y=per_y)
+        sns.barplot(x=per_x, y=per_y)
         plt.title('Permutation importance Ranking by RF')
         plt.savefig(f'RF_permutation_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         per_importance.to_csv('RF_permutation_importance_ranking.csv', index=False)
