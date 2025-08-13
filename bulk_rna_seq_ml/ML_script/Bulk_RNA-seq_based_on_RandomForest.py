@@ -186,8 +186,8 @@ class RF():
             'Permutation_importance_mean': permutation_cal.importances_mean,
             'Permutation_importance_std': permutation_cal.importances_std
                                       }).sort_values('Permutation_importance_mean', ascending=False)
-        per_x = permutation_importance['Permutation_importance_mean'].values[: top_k]
-        per_y = permutation_importance['Feature'].values[: top_k]
+        per_x = per_importance['Permutation_importance_mean'].values[: top_k]
+        per_y = per_importance['Feature'].values[: top_k]
         plt.figure(figsize=(10, 6))
         sns.barplot(X=per_x, y=per_y)
         plt.title('Permutation importance Ranking by RF')
