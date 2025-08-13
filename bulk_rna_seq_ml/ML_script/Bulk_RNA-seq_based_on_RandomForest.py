@@ -136,7 +136,7 @@ class RF():
                            cv=5,
                            n_jobs=-1)
         best_model.fit(self.X, self.y)
-        best_param = best_model.best_param_
+        best_param = best_model.best_params_
         best_score = best_model.best_score_
         print(f'模型最佳参数为:{best_param}, 最佳模型参数得分为{best_score}')
         y_pred = best_model.predict(self.X)
@@ -144,7 +144,7 @@ class RF():
         print(train_acc)
         with open('train_acc.txt', 'w+') as f:
             f.writelines(train_acc)
-        self.model = best_model.best_estimator
+        self.model = best_model.best_estimator_
 
     def prediction(self):
         y_pred = self.model.predict(self.X_test)
@@ -155,7 +155,7 @@ class RF():
 
     def feature_importance_val(self, n_repeats=30, top_k=10):
         #gini重要度
-        importance = self.model.feature_importances
+        importance = self.model.feature_importances_
         feature_names = self.X.columns
         feature_df = pd.DataFrame({
             'Feature': feature_names,
