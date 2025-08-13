@@ -22,8 +22,8 @@ from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.inspection import permutation_importance
 
 
-# data_path = '/parastor/home/dongpc/git_repo/lagransa.github.io/bulk_rna_seq_ml/dataset/'
-data_path = 'C:/Center_bioinfo/ML_bulk_RNA_seq/'
+data_path = '/parastor/home/dongpc/git_repo/lagransa.github.io/bulk_rna_seq_ml/dataset/'
+# data_path = 'C:/Center_bioinfo/ML_bulk_RNA_seq/'
 cts_name = 'GSE132040_counts.csv'
 meta_name = 'GSE132040_metadata.csv'
 
