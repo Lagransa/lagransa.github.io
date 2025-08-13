@@ -22,7 +22,8 @@ from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.inspection import permutation_importance
 
 
-data_path = '/parastor/home/dongpc/git_repo/lagransa.github.io/bulk_rna_seq_ml/dataset/'
+# data_path = '/parastor/home/dongpc/git_repo/lagransa.github.io/bulk_rna_seq_ml/dataset/'
+data_path = 'C:/Center_bioinfo/ML_bulk_RNA_seq/'
 cts_name = 'GSE132040_counts.csv'
 meta_name = 'GSE132040_metadata.csv'
 
@@ -71,7 +72,7 @@ meta_df_aligned = (
 )
 
 meta_df_aligned['age'] = meta_df_aligned['characteristics: age'].astype(int)
-dds = DeseqDataSet(counts=counts_final_keeped, metadata=meta_df_aligned, design="~1", n_cpus=4, size_factors_fit_type='poscounts'\
+dds = DeseqDataSet(counts=counts_final_keeped, metadata=meta_df_aligned, design="~1", n_cpus=-1, size_factors_fit_type='poscounts'\
                   , quiet=False)
 
 dds.fit_size_factors()
@@ -194,6 +195,6 @@ class RF():
         per_importance.to_csv('RF_permutation_importance_ranking.csv', index=False)
 
 
-rf_model = RF(X_train, y_train) #实例化
+rf_model = RF(X_train, y_train, X_test, y_test) #实例化
 rf_model.forward() #forward
 rf_model.feature_importance_val() #拿特征重要度排序
