@@ -4,6 +4,7 @@ import numpy as np
 from pathlib import Path
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import seaborn as sns
 import sklearn
 from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSplit, RepeatedStratifiedKFold
 from sklearn.preprocessing import StandardScaler
@@ -15,14 +16,16 @@ from sklearn.metrics import mean_absolute_error, classification_report, balanced
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from pydeseq2.dds import DeseqDataSet
+from scipy.stats import spearmanr
 import re
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.inspection import permutation_importance
 
 
-data_path = 'C:/Center_bioinfo/ML_bulk_RNA_seq/'
+data_path = '/parastor/home/dongpc/git_repo/lagransa.github.io/bulk_rna_seq_ml/dataset/'
 cts_name = 'GSE132040_counts.csv'
 meta_name = 'GSE132040_metadata.csv'
+
 
 counts_df = pd.read_csv(data_path + cts_name, index_col=0)
 meta_df = pd.read_csv(data_path + meta_name)
@@ -94,3 +97,103 @@ cb = plt.colorbar(sc); cb.set_label('age')
 ax.set_title('PCA on VST')
 plt.tight_layout()
 plt.savefig('pca_vst', dpi=300, format='png', bbox_inches='tight')
+
+#整理数据
+X_df, gene = vst_df, vst_df.columns.to_numpy()
+y = meta_df_aligned['age']
+mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
+vst_df_o = vst_df.reset_index().iloc[:, 1:]
+vst_df_vared = vst_df_o.iloc[:, mask]
+vst_df_vared['Acta1'].values[:10]
+
+#分层抽样留盲测集
+sss = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=7)
+train_idx, test_idx = next(sss.split(vst_df_vared.values, y))
+X_train, X_test = vst_df_vared.iloc[train_idx], vst_df_vared.iloc[test_idx]
+y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+
+#随机森林
+class RF():
+    def __init__(self, X_train, y_train, X_test, y_test):
+        self.X = X_train
+        self.y = y_train
+        self.X_test = X_test
+        self.y_test = y_test
+        self.param_grid = {
+            'n_estimators': [50, 100, 200],
+            'max_depth':[None, 5, 15],
+            'max_features':['sqrt', 0.1, 0.2]
+        }
+        self.model = None
+    
+    #模型调优
+    def forward(self):
+        best_model = GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
+                           param_grid=self.param_grid,
+                           scoring='accuracy',
+                           cv=5,
+                           n_jobs=-1)
+        best_model.fit(self.X, self.y)
+        best_param = best_model.best_param_
+        best_score = best_model.best_score_
+        print(f'模型最佳参数为:{best_param}, 最佳模型参数得分为{best_score}')
+        y_pred = best_model.predict(self.X)
+        train_acc = classification_report(y_pred, self.y)
+        print(train_acc)
+        with open('train_acc.txt', 'w+') as f:
+            f.writelines(train_acc)
+        self.model = best_model.best_estimator
+
+    def prediction(self):
+        y_pred = self.model.predict(self.X_test)
+        final_acc = classification_report(y_pred, self.y_test)
+        print(final_acc)
+        with open('test_acc.txt', 'w+') as f:
+            f.writelines(final_acc)
+
+    def feature_importance_val(self, n_repeats=30, top_k=10):
+        #gini重要度
+        importance = self.model.feature_importances
+        feature_names = self.X.columns
+        feature_df = pd.DataFrame({
+            'Feature': feature_names,
+            'Importance': importance
+            }).sort_values('Importance', ascending=False)
+        imp_x = feature_df['Importance'].values[:top_k]
+        imp_y = feature_df['Feature'].values[:top_k]
+        
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x=imp_x, y=imp_y)
+        plt.title('Feature Importance Ranking by RF')
+        plt.savefig(f'RF_feature_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        feature_df.to_csv('RF_feature_importance_ranking.csv', index=False)
+        plt.close()
+        
+        #置换重要度
+        permutation_cal = permutation_importance(
+            estimator=self.model,
+            X=self.X_test,
+            y=self.y_test,
+            n_repeats=n_repeats,
+            n_jobs=-1,
+            random_state=7
+        )
+        
+        per_importance = pd.DataFrame({
+            'Feature': feature_names,
+            'Permutation_importance_mean': permutation_cal.importances_mean,
+            'Permutation_importance_std': permutation_cal.importances_std
+                                      }).sort_values('Permutation_importance_mean', ascending=False)
+        per_x = permutation_importance['Permutation_importance_mean'].values[: top_k]
+        per_y = permutation_importance['Feature'].values[: top_k]
+        plt.figure(figsize=(10, 6))
+        sns.barplot(X=per_x, y=per_y)
+        plt.title('Permutation importance Ranking by RF')
+        plt.savefig(f'RF_permutation_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        per_importance.to_csv('RF_permutation_importance_ranking.csv', index=False)
+
+
+rf_model = RF(X_train, y_train) #实例化
+rf_model.forward() #forward
+rf_model.feature_importance_val() #拿特征重要度排序
