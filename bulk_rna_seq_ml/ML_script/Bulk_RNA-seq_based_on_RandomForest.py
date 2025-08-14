@@ -129,7 +129,7 @@ class RF():
         self.X_test = X_test
         self.y_test = y_test
         self.param_grid = {
-            'n_estimators': [30, 50, 75, 100],
+            'n_estimators': [30, 50, 70, 100],
             'max_depth':[1, 2, 5, 10, 15],
             'max_features':['sqrt', 0.1, 0.2, 0.5],
             'min_samples_leaf': [2, 3, 4, 5],
