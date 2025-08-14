@@ -124,8 +124,8 @@ class RF():
         self.X_test = X_test
         self.y_test = y_test
         self.param_grid = {
-            'n_estimators': [50, 100, 200, 500],
-            'max_depth':[None, 5, 15, 30],
+            'n_estimators': [5, 10, 20, 30],
+            'max_depth':[None, 5, 10, 15],
             'max_features':['sqrt', 0.1, 0.2, 0.5],
             'min_samples_leaf': [1, 2, 3, 5],
             'min_samples_split': [2, 3, 4]
@@ -156,7 +156,7 @@ class RF():
         
         y_pred = best_model.predict(self.X)
         train_acc = classification_report(self.y, y_pred, digits=4)
-        print(train_acc)
+        print(f'训练集ACC{train_acc}')
         with open('train_acc.txt', 'w+') as f:
             f.writelines(train_acc)
         self.model = best_model.best_estimator_
@@ -164,7 +164,7 @@ class RF():
     def prediction(self):
         y_pred = self.model.predict(self.X_test)
         final_acc = classification_report(self.y_test, y_pred)
-        print(final_acc)
+        print(f'测试集ACC{final_acc}')
         with open('RF_test_acc.txt', 'w+') as f:
             f.writelines(final_acc)
 
