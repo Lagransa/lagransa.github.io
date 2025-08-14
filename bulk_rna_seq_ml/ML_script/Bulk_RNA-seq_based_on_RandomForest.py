@@ -99,7 +99,7 @@ ax.set_xlabel(f'PC1: {expl[0]:.2%}'); ax.set_ylabel(f'PC2: {expl[1]:.2%}'); ax.s
 cb = plt.colorbar(sc); cb.set_label('age')
 ax.set_title('PCA on VST')
 plt.tight_layout()
-plt.savefig('pca_vst', dpi=300, format='png', bbox_inches='tight')
+plt.savefig('pca_vst.png', dpi=300, format='png', bbox_inches='tight')
 
 #整理数据
 X_df, gene = vst_df, vst_df.columns.to_numpy()
@@ -215,7 +215,7 @@ class RF():
         shap_explainer = TreeExplainer(self.model)
         shap_values = shap_explainer.shap_values(self.X_test)
         with open('RF_shap_values.txt', 'w+') as f:
-            f.writelines(shap_values)
+            f.write(np.array2string(np.asarray(shap_values, dtype=object)))
         shap.summary_plot(shap_values, self.X_test, plot_type='bar', max_display=top_k, show=False)
         plt.savefig(f'RF_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
