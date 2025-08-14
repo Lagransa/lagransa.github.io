@@ -17,6 +17,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from pydeseq2.dds import DeseqDataSet
 from scipy.stats import spearmanr
+import shap
 from shap import TreeExplainer
 import re
 from sklearn.base import BaseEstimator, TransformerMixin, clone
@@ -125,21 +126,28 @@ class RF():
         self.param_grid = {
             'n_estimators': [50, 100, 200, 500],
             'max_depth':[None, 5, 15, 30],
-            'max_features':['sqrt', 0.1, 0.2, 0.5]
+            'max_features':['sqrt', 0.1, 0.2, 0.5],
+            'min_samples_leaf': [1, 2, 3, 5],
+            'min_samples_split': [2, 3, 4]
         }
         self.model = None
     
     #模型调优
     def forward(self):
+        score_acc = ['accuracy', 'balanced_accuracy', 'f1_macro', 'neg_log_loss']
         best_model = GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
                            param_grid=self.param_grid,
-                           scoring='accuracy',
+                           scoring=score_acc,
                            cv=5,
                            n_jobs=-1)
         best_model.fit(self.X, self.y)
         best_param = best_model.best_params_
         best_score = best_model.best_score_
-        print(f'模型最佳参数为:{best_param}, 最佳模型参数得分为{best_score}')
+        best_model_acc = best_model['test_accuracy'].mean()
+        best_model_bacc = best_model['test_balanced_accuracy'].mean()
+        best_model_macro = best_model['test_f1_macro'].mean()
+        best_model_neg_log_loss = -best_model['test_neg_log_loss'].mean()
+        print(f'模型最佳参数为:{best_param}, 最佳模型参数得分为{best_score}, ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
         y_pred = best_model.predict(self.X)
         train_acc = classification_report(y_pred, self.y)
         print(train_acc)
@@ -200,14 +208,10 @@ class RF():
         #SHAP特征重要度
         shap_explainer = TreeExplainer(self.model)
         shap_values = shap_explainer.shap_values(self.X_test)
-        shap_importance = pd.DataFrame({
-            'Feature': feature_names,
-            'SHAP': shap_values
-        }).sort_values('SHAP', ascending=False)
-        shap_importance.to_csv(f'RF_SHAP.csv', index=False)
+        with open('RF_shap_values.txt', 'w+') as f:
+            f.writelines(shap_values)
         shap.summary_plot(shap_values, self.X_test, feature_names=per_y, plot_type='bar')
         plt.savefig(f'RF_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
-        shap_importance.to_csv('RF_SHAP_ranking.csv', index=False)
         plt.close()
 
 rf_model = RF(X_train, y_train, X_test, y_test) #实例化
@@ -226,9 +230,16 @@ class RFE_RF():
         self.final_model = None
 
     def forward(self):
+        score_acc = ['accuracy', 'balanced_accuracy', 'f1_macro', 'neg_log_loss']
         model = RandomForestClassifier(n_estimators=100, max_features=0.1, random_state=7, n_jobs=-1)
-        rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring='accuracy', min_features_to_select=50, verbose=1, n_jobs=-1)
+        rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring=score_acc, min_features_to_select=50, verbose=1, n_jobs=-1)
         selector = rfecv.fit(self.X, self.y)
+        best_model_acc = rfecv['test_accuracy'].mean()
+        best_model_bacc = rfecv['test_balanced_accuracy'].mean()
+        best_model_macro = rfecv['test_f1_macro'].mean()
+        best_model_neg_log_loss = -rfecv['test_neg_log_loss'].mean()
+        print(f'模型ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
+
         self.X_train_filtered = selector.transform(self.X)
         self.X_test_filtered = selector.transform(self.X_test)
         print(f'选择的特征掩码为:{selector.support_}', f'特征排名为{selector.ranking_}', f'经选择后训练集的shape为{self.X_train_filtered.shape}')
@@ -282,14 +293,10 @@ class RFE_RF():
         #SHAP特征重要度
         shap_explainer = TreeExplainer(self.final_model)
         shap_values = shap_explainer.shap_values(self.X_test_filtered)
-        shap_importance = pd.DataFrame({
-            'Feature': feature_names,
-            'SHAP': shap_values
-        }).sort_values('SHAP', ascending=False)
-        shap_importance.to_csv(f'RF_SHAP.csv', index=False)
+        with open('RFE_shap_values.txt', 'w+') as f:
+            f.writelines(shap_values)
         shap.summary_plot(shap_values, self.X_test_filtered, feature_names=per_y, plot_type='bar')
         plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
-        shap_importance.to_csv(f'RFE_SHAP.csv', index=False)
         plt.close()
 
         
