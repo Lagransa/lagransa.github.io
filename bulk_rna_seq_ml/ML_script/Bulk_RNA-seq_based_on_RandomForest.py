@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import ElasticNetCV
 from sklearn.feature_selection import SelectKBest, f_regression, RFECV
-from sklearn.model_selection import cross_val_predict, GridSearchCV, cross_validate
+from sklearn.model_selection import cross_val_predict, GridSearchCV, cross_validate, cross_val_score
 from sklearn.metrics import mean_absolute_error, classification_report, balanced_accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
@@ -144,13 +144,18 @@ class RF():
         best_model.fit(self.X, self.y)
         best_param = best_model.best_params_
         best_score = best_model.best_score_
-        best_model_acc = best_model['test_accuracy'].mean()
-        best_model_bacc = best_model['test_balanced_accuracy'].mean()
-        best_model_macro = best_model['test_f1_macro'].mean()
-        best_model_neg_log_loss = -best_model['test_neg_log_loss'].mean()
-        print(f'模型最佳参数为:{best_param}, 最佳模型参数得分为{best_score}, ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
+        cv_results = best_model.cv_results_
+        best_idx = best_model.best_index_
+        
+        best_model_acc = cv_results['mean_test_accuracy'][best_idx]
+        best_model_bacc = cv_results['mean_test_balanced_accuracy'][best_idx]
+        best_model_macro = cv_results['mean_test_f1_macro'][best_idx]
+        best_model_neg_log_loss = -cv_results['test_neg_log_loss'][best_idx]
+        print(f'模型最佳参数为:{best_param}, 最佳模型参数的bACC得分为{best_score}, ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
+        pd.DataFrame(cv_results).to_csv('RF_grid_cv_results.csv', index=False)
+        
         y_pred = best_model.predict(self.X)
-        train_acc = classification_report(y_pred, self.y)
+        train_acc = classification_report(self.y, y_pred, digits=4)
         print(train_acc)
         with open('train_acc.txt', 'w+') as f:
             f.writelines(train_acc)
@@ -211,7 +216,7 @@ class RF():
         shap_values = shap_explainer.shap_values(self.X_test)
         with open('RF_shap_values.txt', 'w+') as f:
             f.writelines(shap_values)
-        shap.summary_plot(shap_values, self.X_test, feature_names=per_y, plot_type='bar')
+        shap.summary_plot(shap_values, self.X_test, plot_type='bar', max_display=top_k, show=False)
         plt.savefig(f'RF_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
 
@@ -229,33 +234,41 @@ class RFE_RF():
         self.X_train_filtered = None
         self.X_test_filtered = None
         self.final_model = None
+        self.selected_feature_names = None
 
     def forward(self):
         score_acc = ['accuracy', 'balanced_accuracy', 'f1_macro', 'neg_log_loss']
         model = RandomForestClassifier(n_estimators=100, max_features=0.1, random_state=7, n_jobs=-1)
-        rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring=score_acc, min_features_to_select=50, verbose=1, n_jobs=-1)
+        rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring=score_acc[2], min_features_to_select=50, verbose=1, n_jobs=-1)
         selector = rfecv.fit(self.X, self.y)
-        best_model_acc = rfecv['test_accuracy'].mean()
-        best_model_bacc = rfecv['test_balanced_accuracy'].mean()
-        best_model_macro = rfecv['test_f1_macro'].mean()
-        best_model_neg_log_loss = -rfecv['test_neg_log_loss'].mean()
-        print(f'模型ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
-
+        
         self.X_train_filtered = selector.transform(self.X)
+        acc = cross_val_score(model, self.X_train_filtered, self.y, cv=5, scoring='accuracy', n_jobs=-1).mean()
+        bacc = cross_val_score(model, self.X_train_filtered, self.y, cv=5, scoring='balanced_accuracy', n_jobs=-1).mean()
+        f1m = cross_val_score(model, self.X_train_filtered, self.y, cv=5, scoring='f1_macro', n_jobs=-1).mean()
+        nll = -cross_val_score(model, self.X_train_filtered, self.y, cv=5, scoring='neg_log_loss', n_jobs=-1).mean()
+        print(f'模型ACC为{acc}, bACC为{bacc}, MACRO为{f1m}, 负对数损失为{nll}')
+        
         self.X_test_filtered = selector.transform(self.X_test)
+        if hasattr(self.X, 'columns'):
+            self.selected_feature_names = list(self.X.columns[selector.support_])
+        else:
+            self.selected_feature_names = [f'feat_{i}' for i, keep in enumerate(selector.support_) if keep]
+        
         print(f'选择的特征掩码为:{selector.support_}', f'特征排名为{selector.ranking_}', f'经选择后训练集的shape为{self.X_train_filtered.shape}')
 
     def prediction(self):
-        final_model = RandomForestClassifier(n_estimator=200, max_features='sqrt', random_state=7, n_jobs=-1, max_depth=20)
+        final_model = RandomForestClassifier(n_estimators=200, max_features='sqrt', random_state=7, n_jobs=-1, max_depth=20)
         final_model.fit(self.X_train_filtered, self.y)
         final_pred = final_model.predict(self.X_test_filtered)
         final_acc = classification_report(self.y_test, final_pred)
         with open('RFE_test_acc.txt', 'w+') as f:
-            f.writelines(final_acc)
+            f.write(final_acc)
+        self.final_model = final_model
 
     def feature_importance_val(self, n_repeats=30, top_k=10):
         importance_gini = self.final_model.feature_importances_
-        feature_names = self.X_train_filtered.columns
+        feature_names = self.selected_feature_names
         feature_df = pd.DataFrame({
             'Feature': feature_names,
             'Importance': importance_gini
@@ -278,7 +291,7 @@ class RFE_RF():
                                                  random_state=7
                                                 )
         per_importance = pd.DataFrame({
-            'Feature': self.X_test_filtered.columns,
+            'Feature': feature_names,
             'Permutation Importance mean': permutation_cal.importances_mean,
             'Permutation Importance std': permutation_cal.importances_std
         }).sort_values('Permutation Importance mean', ascending=False)
@@ -294,15 +307,13 @@ class RFE_RF():
         #SHAP特征重要度
         shap_explainer = TreeExplainer(self.final_model)
         shap_values = shap_explainer.shap_values(self.X_test_filtered)
-        with open('RFE_shap_values.txt', 'w+') as f:
-            f.writelines(shap_values)
-        shap.summary_plot(shap_values, self.X_test_filtered, feature_names=per_y, plot_type='bar')
+        with open('RF_shap_values.txt', 'w+') as f:
+            f.write(np.array2string(np.asarray(shap_values, dtype=object)))
+        shap.summary_plot(shap_values, self.X_test_filtered, feature_names=feature_names, plot_type='bar', show=False)
         plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
-
-        
     
-rfe = RFE_RF()
+rfe = RFE_RF(X_train, y_train, X_test, y_test)
 rfe.forward()
 rfe.prediction()
 rfe.feature_importance_val()
