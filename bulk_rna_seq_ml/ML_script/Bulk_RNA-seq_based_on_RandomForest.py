@@ -103,8 +103,13 @@ plt.savefig('pca_vst.png', dpi=300, format='png', bbox_inches='tight')
 
 #整理数据
 X_df, gene = vst_df, vst_df.columns.to_numpy()
-y = meta_df_aligned['age']
-mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:5000]
+y = y_age.copy()
+###############调整标签类###########################
+y[y <= 6] = 0
+y[(y >= 9)&(y <= 15)] = 1
+y[(y > 15)] = 2
+###############调整完毕#############################
+mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
 vst_df_o = vst_df.reset_index().iloc[:, 1:]
 vst_df_vared = vst_df_o.iloc[:, mask]
 vst_df_vared['Acta1'].values[:10]
@@ -216,7 +221,7 @@ class RF():
         shap_values = shap_explainer.shap_values(self.X_test)
         with open('RF_shap_values.txt', 'w+') as f:
             f.write(np.array2string(np.asarray(shap_values, dtype=object)))
-        shap.summary_plot(shap_values, self.X_test, plot_type='bar', max_display=top_k, show=False)
+        shap.summary_plot(abs(shap_values), self.X_test, plot_type='bar', max_display=top_k, show=False)
         plt.savefig(f'RF_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
 
@@ -238,7 +243,7 @@ class RFE_RF():
 
     def forward(self):
         score_acc = ['accuracy', 'balanced_accuracy', 'f1_macro', 'neg_log_loss']
-        model = RandomForestClassifier(n_estimators=100, max_features=0.1, random_state=7, n_jobs=-1)
+        model = RandomForestClassifier(n_estimators=100, max_features=0.5, random_state=7, n_jobs=-1)
         rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring=score_acc[2], min_features_to_select=50, verbose=1, n_jobs=-1)
         selector = rfecv.fit(self.X, self.y)
         
@@ -309,7 +314,7 @@ class RFE_RF():
         shap_values = shap_explainer.shap_values(self.X_test_filtered)
         with open('RF_shap_values.txt', 'w+') as f:
             f.write(np.array2string(np.asarray(shap_values, dtype=object)))
-        shap.summary_plot(shap_values, self.X_test_filtered, feature_names=feature_names, plot_type='bar', show=False)
+        shap.summary_plot(abs(shap_values), self.X_test_filtered, feature_names=feature_names, plot_type='bar', show=False)
         plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
     
