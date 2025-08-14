@@ -10,13 +10,14 @@ from sklearn.model_selection import StratifiedKFold, KFold, StratifiedShuffleSpl
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import ElasticNetCV
-from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.feature_selection import SelectKBest, f_regression, RFECV
 from sklearn.model_selection import cross_val_predict, GridSearchCV, cross_validate
 from sklearn.metrics import mean_absolute_error, classification_report, balanced_accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.decomposition import PCA
 from pydeseq2.dds import DeseqDataSet
 from scipy.stats import spearmanr
+from shap import TreeExplainer
 import re
 from sklearn.base import BaseEstimator, TransformerMixin, clone
 from sklearn.inspection import permutation_importance
@@ -122,9 +123,9 @@ class RF():
         self.X_test = X_test
         self.y_test = y_test
         self.param_grid = {
-            'n_estimators': [50, 100, 200],
-            'max_depth':[None, 5, 15],
-            'max_features':['sqrt', 0.1, 0.2]
+            'n_estimators': [50, 100, 200, 500],
+            'max_depth':[None, 5, 15, 30],
+            'max_features':['sqrt', 0.1, 0.2, 0.5]
         }
         self.model = None
     
@@ -148,9 +149,9 @@ class RF():
 
     def prediction(self):
         y_pred = self.model.predict(self.X_test)
-        final_acc = classification_report(y_pred, self.y_test)
+        final_acc = classification_report(self.y_test, y_pred)
         print(final_acc)
-        with open('test_acc.txt', 'w+') as f:
+        with open('RF_test_acc.txt', 'w+') as f:
             f.writelines(final_acc)
 
     def feature_importance_val(self, n_repeats=30, top_k=10):
@@ -166,9 +167,9 @@ class RF():
         
         plt.figure(figsize=(10, 6))
         sns.barplot(x=imp_x, y=imp_y)
-        plt.title('Feature Importance Ranking by RF')
-        plt.savefig(f'RF_feature_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
-        feature_df.to_csv('RF_feature_importance_ranking.csv', index=False)
+        plt.title('Gini Importance Ranking by RF')
+        plt.savefig(f'RF_gini_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        feature_df.to_csv('RF_gini_importance_ranking.csv', index=False)
         plt.close()
         
         #置换重要度
@@ -178,7 +179,8 @@ class RF():
             y=self.y_test,
             n_repeats=n_repeats,
             n_jobs=-1,
-            random_state=7
+            random_state=7,
+            scoring='accuracy'
         )
         
         per_importance = pd.DataFrame({
@@ -193,8 +195,106 @@ class RF():
         plt.title('Permutation importance Ranking by RF')
         plt.savefig(f'RF_permutation_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         per_importance.to_csv('RF_permutation_importance_ranking.csv', index=False)
+        plt.close()
 
+        #SHAP特征重要度
+        shap_explainer = TreeExplainer(self.model)
+        shap_values = shap_explainer.shap_values(self.X_test)
+        shap_importance = pd.DataFrame({
+            'Feature': feature_names,
+            'SHAP': shap_values
+        }).sort_values('SHAP', ascending=False)
+        shap_importance.to_csv(f'RF_SHAP.csv', index=False)
+        shap.summary_plot(shap_values, self.X_test, feature_names=per_y, plot_type='bar')
+        plt.savefig(f'RF_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        shap_importance.to_csv('RF_SHAP_ranking.csv', index=False)
+        plt.close()
 
 rf_model = RF(X_train, y_train, X_test, y_test) #实例化
 rf_model.forward() #forward
+rf_model.prediction() #预测分数
 rf_model.feature_importance_val() #拿特征重要度排序
+
+class RFE_RF():
+    def __init__(self, X_train, y_train, X_test, y_test):
+        self.X = X_train
+        self.y = y_train
+        self.X_test = X_test
+        self.y_test = y_test
+        self.X_train_filtered = None
+        self.X_test_filtered = None
+        self.final_model = None
+
+    def forward(self):
+        model = RandomForestClassifier(n_estimators=100, max_features=0.1, random_state=7, n_jobs=-1)
+        rfecv = RFECV(estimator=model, step=0.05, cv=5, scoring='accuracy', min_features_to_select=50, verbose=1, n_jobs=-1)
+        selector = rfecv.fit(self.X, self.y)
+        self.X_train_filtered = selector.transform(self.X)
+        self.X_test_filtered = selector.transform(self.X_test)
+        print(f'选择的特征掩码为:{selector.support_}', f'特征排名为{selector.ranking_}', f'经选择后训练集的shape为{self.X_train_filtered.shape}')
+
+    def prediction(self):
+        final_model = RandomForestClassifier(n_estimator=200, max_features='sqrt', random_state=7, n_jobs=-1, max_depth=20)
+        final_model.fit(self.X_train_filtered, self.y)
+        final_pred = final_model.predict(self.X_test_filtered)
+        final_acc = classification_report(self.y_test, final_pred)
+        with open('RFE_test_acc.txt', 'w+') as f:
+            f.writelines(final_acc)
+
+    def feature_importance_val(self, n_repeats=30, top_k=10):
+        importance_gini = self.final_model.feature_importances_
+        feature_names = self.X_train_filtered.columns
+        feature_df = pd.DataFrame({
+            'Feature': feature_names,
+            'Importance': importance_gini
+        }).sort_values('Importance', ascending=False)
+        imp_x = feature_df['Importance'].values[:top_k]
+        imp_y = feature_df['Feature'].values[:top_k]
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x=imp_x, y=imp_y)
+        plt.title('Gini Importance Ranking by RFE')
+        plt.savefig(f'RFE_gini_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        plt.close()
+        feature_df.to_csv('RFE_gini_importance_ranking.csv', index=False)
+        
+        permutation_cal = permutation_importance(estimator=self.final_model,
+                                                 X=self.X_test_filtered,
+                                                 y=self.y_test,
+                                                 scoring='accuracy',
+                                                 n_jobs=-1,
+                                                 n_repeats=n_repeats,
+                                                 random_state=7
+                                                )
+        per_importance = pd.DataFrame({
+            'Feature': self.X_test_filtered.columns,
+            'Permutation Importance mean': permutation_cal.importances_mean,
+            'Permutation Importance std': permutation_cal.importances_std
+        }).sort_values('Permutation Importance mean', ascending=False)
+        per_x = per_importance['Permutation Importance mean'].values[:top_k]
+        per_y = per_importance['Feature'].values[:top_k]
+        plt.figure(figsize=(10, 6))
+        sns.barplot(x=per_x, y=per_y)
+        plt.title('Permutation Importance Ranking by RFE')
+        plt.savefig(f'RFE_permutation_importance_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        plt.close()
+        per_importance.to_csv('RFE_permutation_importance_ranking.csv', index=False)
+
+        #SHAP特征重要度
+        shap_explainer = TreeExplainer(self.final_model)
+        shap_values = shap_explainer.shap_values(self.X_test_filtered)
+        shap_importance = pd.DataFrame({
+            'Feature': feature_names,
+            'SHAP': shap_values
+        }).sort_values('SHAP', ascending=False)
+        shap_importance.to_csv(f'RF_SHAP.csv', index=False)
+        shap.summary_plot(shap_values, self.X_test_filtered, feature_names=per_y, plot_type='bar')
+        plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
+        shap_importance.to_csv(f'RFE_SHAP.csv', index=False)
+        plt.close()
+
+        
+    
+rfe = RFE_RF()
+rfe.forward()
+rfe.prediction()
+rfe.feature_importance_val()
