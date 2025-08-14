@@ -109,7 +109,7 @@ y.loc[y <= 6] = 0
 y.loc[(y >= 9)&(y <= 15)] = 1
 y.loc[(y > 15)] = 2
 ###############调整完毕#############################
-mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
+mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:5000]
 vst_df_o = vst_df.reset_index().iloc[:, 1:]
 vst_df_vared = vst_df_o.iloc[:, mask]
 vst_df_vared['Acta1'].values[:10]
