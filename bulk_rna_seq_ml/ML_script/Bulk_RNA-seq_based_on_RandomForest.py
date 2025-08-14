@@ -105,13 +105,19 @@ plt.savefig('pca_vst.png', dpi=300, format='png', bbox_inches='tight')
 X_df, gene = vst_df, vst_df.columns.to_numpy()
 y = meta_aln['age']
 ###############调整标签类###########################
+#五分类
+y.loc[y <= 3] = 0
+y.loc[(y >= 6)&(y <= 9)] = 1
+y.loc[(y >= 12)&(y <= 15)] = 2
+y.loc[(y >= 18)&(y <= 21)] = 3
+y.loc[(y >= 24)&(y <= 27)] = 4
 #三分类
 # y.loc[y <= 6] = 0
 # y.loc[(y >= 9)&(y <= 15)] = 1
 # y.loc[(y > 15)] = 2
 ##二分类
-y.loc[y <= 12] = 0
-y.loc[y >= 15] = 1
+# y.loc[y <= 12] = 0
+# y.loc[y >= 15] = 1
 ###############调整完毕#############################
 mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
 vst_df_o = vst_df.reset_index().iloc[:, 1:]
