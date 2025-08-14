@@ -104,7 +104,7 @@ plt.savefig('pca_vst.png', dpi=300, format='png', bbox_inches='tight')
 #整理数据
 X_df, gene = vst_df, vst_df.columns.to_numpy()
 y = meta_df_aligned['age']
-mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
+mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:5000]
 vst_df_o = vst_df.reset_index().iloc[:, 1:]
 vst_df_vared = vst_df_o.iloc[:, mask]
 vst_df_vared['Acta1'].values[:10]
