@@ -150,7 +150,7 @@ class RF():
         best_model_acc = cv_results['mean_test_accuracy'][best_idx]
         best_model_bacc = cv_results['mean_test_balanced_accuracy'][best_idx]
         best_model_macro = cv_results['mean_test_f1_macro'][best_idx]
-        best_model_neg_log_loss = -cv_results['test_neg_log_loss'][best_idx]
+        best_model_neg_log_loss = -cv_results['mean_test_neg_log_loss'][best_idx]
         print(f'模型最佳参数为:{best_param}, 最佳模型参数的bACC得分为{best_score}, ACC为{best_model_acc}, bACC为{best_model_bacc}, MACRO为{best_model_macro}, 负对数损失为{best_model_neg_log_loss}')
         pd.DataFrame(cv_results).to_csv('RF_grid_cv_results.csv', index=False)
         
