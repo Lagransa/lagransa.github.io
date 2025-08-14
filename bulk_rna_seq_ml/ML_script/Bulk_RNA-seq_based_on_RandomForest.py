@@ -109,7 +109,7 @@ y.loc[y <= 6] = 0
 y.loc[(y >= 9)&(y <= 15)] = 1
 y.loc[(y > 15)] = 2
 ###############调整完毕#############################
-mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:5000]
+mask = np.argsort(-X_df.values.var(axis=0)).astype(int)[:1000]
 vst_df_o = vst_df.reset_index().iloc[:, 1:]
 vst_df_vared = vst_df_o.iloc[:, mask]
 vst_df_vared['Acta1'].values[:10]
@@ -162,7 +162,7 @@ class RF():
         y_pred = best_model.predict(self.X)
         train_acc = classification_report(self.y, y_pred, digits=4)
         print(f'训练集ACC{train_acc}')
-        with open('train_acc.txt', 'w+') as f:
+        with open('RF_train_acc.txt', 'w+') as f:
             f.writelines(train_acc)
         self.model = best_model.best_estimator_
 
@@ -312,7 +312,7 @@ class RFE_RF():
         #SHAP特征重要度
         shap_explainer = TreeExplainer(self.final_model)
         shap_values = shap_explainer.shap_values(self.X_test_filtered)
-        with open('RF_shap_values.txt', 'w+') as f:
+        with open('RFE_shap_values.txt', 'w+') as f:
             f.write(np.array2string(np.asarray(shap_values, dtype=object)))
         shap.summary_plot(abs(shap_values), self.X_test_filtered, feature_names=feature_names, plot_type='bar', max_display=top_k, show=False)
         plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
