@@ -138,6 +138,7 @@ class RF():
         best_model = GridSearchCV(estimator=RandomForestClassifier(n_jobs=-1),
                            param_grid=self.param_grid,
                            scoring=score_acc,
+                           refit='balanced_accuracy',
                            cv=5,
                            n_jobs=-1)
         best_model.fit(self.X, self.y)
