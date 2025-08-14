@@ -129,7 +129,7 @@ class RF():
         self.X_test = X_test
         self.y_test = y_test
         self.param_grid = {
-            'n_estimators': [10, 20, 30, 50, 100],
+            'n_estimators': [30, 50, 75, 100],
             'max_depth':[1, 2, 5, 10, 15],
             'max_features':['sqrt', 0.1, 0.2, 0.5],
             'min_samples_leaf': [2, 3, 4, 5],
@@ -314,7 +314,7 @@ class RFE_RF():
         shap_values = shap_explainer.shap_values(self.X_test_filtered)
         with open('RF_shap_values.txt', 'w+') as f:
             f.write(np.array2string(np.asarray(shap_values, dtype=object)))
-        shap.summary_plot(abs(shap_values), self.X_test_filtered, feature_names=feature_names, plot_type='bar', show=False)
+        shap.summary_plot(abs(shap_values), self.X_test_filtered, feature_names=feature_names, plot_type='bar', max_display=top_k, show=False)
         plt.savefig(f'RFE_SHAP_ranking_top{top_k}.png', bbox_inches='tight', dpi=300)
         plt.close()
     
